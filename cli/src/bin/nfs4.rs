@@ -3,10 +3,11 @@
 use chrono::{offset::TimeZone as _, Local};
 use clap::{Parser, Subcommand};
 use indicatif::{ProgressBar, ProgressStyle};
-use nfs4::{FileAttribute, FileAttributeId, FileAttributes};
+use nfs4::{FileAttribute, FileAttributeId, FileAttributes, FileHandle};
 use nfs4_client::Result;
 use std::net::TcpStream;
 use std::path::PathBuf;
+use hex::{FromHex, ToHex};
 
 fn file_attrs(s: &str) -> std::result::Result<FileAttributes, String> {
     let mut attrs = FileAttributes::default();
@@ -24,6 +25,11 @@ fn file_attrs(s: &str) -> std::result::Result<FileAttributes, String> {
     }
 
     Ok(attrs)
+}
+
+fn file_handle(s: &str) -> std::result::Result<FileHandle, String> {
+    let fh = FileHandle(Vec::from_hex(&s).map_err(|e| e.to_string())?);
+    Ok(fh)
 }
 
 #[derive(Subcommand)]
@@ -50,6 +56,13 @@ enum Command {
         local: PathBuf,
         remote: PathBuf,
     },
+    Ls {
+        path: PathBuf,
+    },
+    Cat {
+        #[arg(value_parser = file_handle)]
+        fh: FileHandle,
+    }
 }
 
 #[derive(Parser)]
@@ -154,6 +167,35 @@ impl Cli {
         self.client.write_all(handle, progress.wrap_read(file))?;
         Ok(())
     }
+
+    fn ls(&mut self, path: PathBuf) -> Result<()> {
+        let handle = self.client.look_up(&path)?;
+
+        let attr_request = [
+            FileAttributeId::Mode,
+            FileAttributeId::NumLinks,
+            FileAttributeId::Owner,
+            FileAttributeId::Size,
+            FileAttributeId::TimeModify,
+            FileAttributeId::FileHandle,
+        ]
+        .into_iter()
+        .collect();
+        let reply = self.client.read_dir(handle, attr_request)?;
+        for e in reply {
+            let name = &e.name;
+            let fh: &FileHandle = e.attrs.get_as(FileAttributeId::FileHandle).unwrap();
+            let fhstr: String = fh.0.encode_hex();
+            println!("{fhstr} {name}");
+        }
+
+        Ok(())
+    }
+
+    fn cat(&mut self, fh: FileHandle) -> Result<()> {
+        self.client.read_all(fh, std::io::stdout())?;
+        Ok(())
+    }
 }
 
 fn main() -> Result<()> {
@@ -170,6 +212,8 @@ fn main() -> Result<()> {
         Command::Download { remote, local } => cli.download(remote, local)?,
         Command::SetAttr { path, attrs } => cli.set_attr(path, attrs)?,
         Command::Upload { local, remote } => cli.upload(local, remote)?,
+        Command::Ls { path } => cli.ls(path)?,
+        Command::Cat { fh } => cli.cat(fh)?,
     }
 
     Ok(())

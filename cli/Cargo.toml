@@ -13,3 +13,4 @@ indicatif = "^0.17"
 nfs4_client = { version = "^0.1", path = "../nfs4_client" }
 nfs4 = { version = "^0.1", path = "../nfs4" }
 sun_rpc_client = { version = "^0.1", path = "../sun_rpc_client" }
+hex = { version = "0.4.3" }
