@@ -340,7 +340,7 @@ pub struct Time {
 #[cfg(feature = "chrono")]
 impl Time {
     pub fn to_date_time(&self) -> Option<chrono::NaiveDateTime> {
-        chrono::NaiveDateTime::from_timestamp_opt(self.seconds, self.nseconds)
+        chrono::DateTime::from_timestamp(self.seconds, self.nseconds).map(|t| t.naive_utc())
     }
 }
 
