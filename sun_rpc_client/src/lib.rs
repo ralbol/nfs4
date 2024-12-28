@@ -58,9 +58,9 @@ impl<TransportT: Transport> RpcClient<TransportT> {
                 credential: OpaqueAuth::auth_sys(AuthSysParameters {
                     stamp: 0,
                     machine_name: "test-machine".into(),
-                    uid: Uid(0),
-                    gid: Gid(0),
-                    gids: vec![Gid(0)],
+                    uid: Uid(1337),
+                    gid: Gid(42),
+                    gids: vec![Gid(1337)],
                 }),
                 verifier: OpaqueAuth::none(),
                 call_args,
