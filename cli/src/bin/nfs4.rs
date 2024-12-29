@@ -59,6 +59,10 @@ enum Command {
     Ls {
         path: PathBuf,
     },
+    LsFh {
+        #[arg(value_parser = file_handle)]
+        fh: FileHandle,
+    },
     Cat {
         #[arg(value_parser = file_handle)]
         fh: FileHandle,
@@ -192,6 +196,23 @@ impl Cli {
         Ok(())
     }
 
+    fn lsfh(&mut self, fh: FileHandle) -> Result<()> {
+        let attr_request = [
+            FileAttributeId::FileHandle,
+        ]
+        .into_iter()
+        .collect();
+        let reply = self.client.read_dir(fh, attr_request)?;
+        for e in reply {
+            let name = &e.name;
+            let fh: &FileHandle = e.attrs.get_as(FileAttributeId::FileHandle).unwrap();
+            let fhstr: String = fh.0.encode_hex();
+            println!("{fhstr} {name}");
+        }
+
+        Ok(())
+    }
+
     fn cat(&mut self, fh: FileHandle) -> Result<()> {
         self.client.read_all(fh, std::io::stdout())?;
         Ok(())
@@ -213,6 +234,7 @@ fn main() -> Result<()> {
         Command::SetAttr { path, attrs } => cli.set_attr(path, attrs)?,
         Command::Upload { local, remote } => cli.upload(local, remote)?,
         Command::Ls { path } => cli.ls(path)?,
+        Command::LsFh { fh } => cli.lsfh(fh)?,
         Command::Cat { fh } => cli.cat(fh)?,
     }
 
